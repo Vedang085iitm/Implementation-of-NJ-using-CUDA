@@ -59,6 +59,44 @@ pair<ll, pair<ll, ll>> findMinAndComputeDelta(vector<vector<ll>>& njMatrix, vect
 
     ll delta = (rowSums[minIndices.first] - rowSums[minIndices.second]) / (n - 2);
     return make_pair(delta, minIndices);
+
+
+}
+
+
+
+pair<ll, ll> calculateLimbLengths(vector<vector<ll>>& D, ll i, ll j, ll delta) {
+    ll limbLengthI = (D[i][j] + delta) / 2;
+    ll limbLengthJ = (D[i][j] - delta) / 2;
+
+    return make_pair(limbLengthI, limbLengthJ);
+}
+
+
+
+
+vector<vector<ll>> formNewMatrix(vector<vector<ll>>& D, ll i, ll j) {
+    ll n = D.size();
+    vector<vector<ll>> D_prime(n - 1, vector<ll>(n - 1));
+
+    ll m = 0;
+    for (ll k = 0; k < n; ++k) {
+        if (k == i || k == j) continue;
+        ll p = 0;
+        for (ll l = 0; l < n; ++l) {
+            if (l == i || l == j) continue;
+            D_prime[m][p] = D[k][l];
+            ++p;
+        }
+        ++m;
+    }
+
+    for (ll k = 0; k < n - 1; ++k) {
+        D_prime[k][n - 2] = (D[k][i] + D[k][j] - D[i][j]) / 2;
+        D_prime[n - 2][k] = D_prime[k][n - 2];
+    }
+
+    return D_prime;
 }
 
 
@@ -97,6 +135,17 @@ int main()
     }
     pair<ll, pair<ll, ll>> minAndDelta = findMinAndComputeDelta(njMatrix, sums, n);
     cout << "The minimum value in the neighbor joining matrix is: " << minAndDelta.first << '\n';
+
+    vector<vector<ll>> newMatrix = formNewMatrix(matrix, minAndDelta.second.first, minAndDelta.second.second);
+    cout << "The new matrix after removing the rows and columns corresponding to the minimum value is:\n";
+    for (const auto& row : newMatrix) {
+        for (const auto& elem : row) {
+            cout << elem << ' ';
+        }
+        cout << '\n';
+    }
+
+
     auto stop = chrono::high_resolution_clock::now();
 auto duration = chrono::duration_cast<chrono::microseconds>(stop - start);
 
