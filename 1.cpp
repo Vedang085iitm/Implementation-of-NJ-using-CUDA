@@ -17,16 +17,6 @@ vector<ll> rowsum(vector<vector<ll>> matrix, ll n)
     }
     return sums;
 }
-// vector<ll> rowsum(vector<vector<ll>> matrix, ll n)
-// {
-//     vector<ll> sums(n, 0);
-//     for(ll i=0;i<n;i++)
-//     {
-//         sums[i] = accumulate(matrix[i].begin(), matrix[i].end(), 0LL);
-//     }
-//     return sums;
-// }
-//here we will check the time of the above functions, the onne which is slower will be used
 
 vector<vector<ll>> neighborJoiningMatrix(vector<vector<ll>>& matrix, vector<ll>& rowSums, ll n) {
     vector<vector<ll>> njMatrix(n, vector<ll>(n, 0));

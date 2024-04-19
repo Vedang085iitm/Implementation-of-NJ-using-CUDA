@@ -48,6 +48,48 @@ __global__ void neighborJoiningMatrix(int *d_matrix, int *d_rowSums, int *d_njMa
     }
 }
 
+__global__ void findMinAndComputeDelta(int *d_njMatrix, int *d_rowSums, int *d_minVal, int *d_minIndices, int n)
+{
+    extern __shared__ int sharedData[];
+
+    int tid = threadIdx.x;
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
+
+    // Load elements into shared memory
+    sharedData[tid] = d_njMatrix[index];
+    __syncthreads();
+
+    // Reduction to find minimum
+    for (int s = blockDim.x / 2; s > 0; s >>= 1)
+    {
+        if (tid < s)
+        {
+            if (sharedData[tid] > sharedData[tid + s])
+            {
+                sharedData[tid] = sharedData[tid + s];
+                d_minIndices[blockIdx.x] = index + s;
+            }
+        }
+        __syncthreads();
+    }
+
+    // Write the result for this block to global memory
+    if (tid == 0)
+    {
+        d_minVal[blockIdx.x] = sharedData[0];
+    }
+}
+
+__global__ void computeDelta(int *d_rowSums, int *d_delta, int *d_minIndices, int n)
+{
+    int index = threadIdx.x;
+
+    if (index == 0)
+    {
+        d_delta[0] = (d_rowSums[d_minIndices[0]] - d_rowSums[d_minIndices[1]]) / (n - 2);
+    }
+}
+
 int main()
 {
     int n;
@@ -97,6 +139,30 @@ int main()
         }
         cout << endl;
     }
+
+    int *minVal = new int[n - 1];
+    int *minIndices = new int[n - 1];
+    int *d_minVal;
+    int *d_minIndices;
+    cudaMalloc(&d_minVal, (n - 1) * sizeof(int));
+    cudaMalloc(&d_minIndices, (n - 1) * sizeof(int));
+    findMinAndComputeDelta<<<numBlocks, blockSize, blockSize.x * sizeof(int)>>>(d_njMatrix, d_sums, d_minVal, d_minIndices, n);
+    cudaDeviceSynchronize();
+    cudaMemcpy(minVal, d_minVal, (n - 1) * sizeof(int), cudaMemcpyDeviceToHost);
+    cudaMemcpy(minIndices, d_minIndices, (n - 1) * sizeof(int), cudaMemcpyDeviceToHost);
+    cout << "Minimum values: " << endl;
+    for (int i = 0; i < n - 1; ++i)
+    {
+        cout << minVal[i] << " ";
+    }
+    cout << endl;
+    cout << "Minimum indices: " << endl;
+    for (int i = 0; i < n - 1; ++i)
+    {
+        cout << minIndices[i] << " ";
+    }
+    cout << endl;
+    
 
     delete[] matrix;
     delete[] sums;
