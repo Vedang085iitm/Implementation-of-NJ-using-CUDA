@@ -102,5 +102,7 @@ int main()
     delete[] sums;
     cudaFree(d_matrix);
     cudaFree(d_sums);
+    cudaFree(d_njMatrix);
+    
     return 0;
 }
