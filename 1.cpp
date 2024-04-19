@@ -4,8 +4,6 @@
 using namespace std;
 typedef long ll;
 
-
-
 vector<ll> rowsum(vector<vector<ll>> matrix, ll n)
 {
     
@@ -59,8 +57,6 @@ pair<ll, pair<ll, ll>> findMinAndComputeDelta(vector<vector<ll>>& njMatrix, vect
 
     ll delta = (rowSums[minIndices.first] - rowSums[minIndices.second]) / (n - 2);
     return make_pair(delta, minIndices);
-
-
 }
 
 
@@ -73,53 +69,52 @@ pair<ll, ll> calculateLimbLengths(vector<vector<ll>>& D, ll i, ll j, ll delta) {
 }
 
 
-
-
 vector<vector<ll>> formNewMatrix(vector<vector<ll>>& D, ll i, ll j) {
     ll n = D.size();
-    vector<vector<ll>> D_prime(n - 1, vector<ll>(n - 1));
-
-    ll m = 0;
-    for (ll k = 0; k < n; ++k) {
-        if (k == i || k == j) continue;
-        ll p = 0;
-        for (ll l = 0; l < n; ++l) {
-            if (l == i || l == j) continue;
-            D_prime[m][p] = D[k][l];
-            ++p;
+    cout << n << endl;
+    vector<vector<ll>> D_prime(n - 1, vector<ll>(n - 1 , 0));
+    ll rct = 1;
+    ll cct;
+    for(ll k = 0 ; k < n ; k++){
+        if(k!=i && k!=j){
+            cct = 1;
+            for(ll m = 0 ; m < n ; m++){
+                if(m!=i && m!=j){
+                    D_prime[rct][cct] = D[k][m];
+                    cct++;
+                }
+            }
+            rct++;
         }
-        ++m;
     }
-
-    for (ll k = 0; k < n - 1; ++k) {
-        D_prime[k][n - 2] = (D[k][i] + D[k][j] - D[i][j]) / 2;
-        D_prime[n - 2][k] = D_prime[k][n - 2];
+    D_prime[0][0] = 0;
+    ll ct = 0;
+    for(ll m = 1 ; m < n - 1 ; m++){
+        while(ct==i || ct==j) ct++;
+        D_prime[0][m] = (D[i][ct] + D[j][ct] - D[i][j]) / 2;
+        D_prime[m][0] = D_prime[0][m];
+        ct++;  
     }
-
     return D_prime;
 }
 
 
-int main()
-{
+int main(){
     ll n;
     cout<<"Enter Size of the matrix: ";
     cin>>n;
     //define 2d vector
     vector<vector<ll>> matrix(n, vector<ll>(n));
     cout<<"Enter the elements of the matrix: ";
-    for(ll i=0;i<n;i++)
-    {
-        for(ll j=0;j<n;j++)
-        {
+    for(ll i=0;i<n;i++){
+        for(ll j=0;j<n;j++){
             cin>>matrix[i][j];
         }
     }
 
-
     auto start = chrono::high_resolution_clock::now();
 
-         vector<ll> sums = rowsum(matrix, n);
+    vector<ll> sums = rowsum(matrix, n);
 
     cout << "The sum of each row is:\n";
     for (const auto& sum : sums) {
@@ -145,13 +140,9 @@ int main()
         cout << '\n';
     }
 
-
     auto stop = chrono::high_resolution_clock::now();
-auto duration = chrono::duration_cast<chrono::microseconds>(stop - start);
+    auto duration = chrono::duration_cast<chrono::microseconds>(stop - start);
 
-cout << "Time taken by function: " << duration.count() << " microseconds" << endl;
+    cout << "Time taken by function: " << duration.count() << " microseconds" << endl;
     return 0;
-    
-
-
 }
