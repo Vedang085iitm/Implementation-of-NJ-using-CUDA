@@ -48,45 +48,76 @@ __global__ void neighborJoiningMatrix(int *d_matrix, int *d_rowSums, int *d_njMa
     }
 }
 
-__global__ void findMinAndComputeDelta(int *d_njMatrix, int *d_rowSums, int *d_minVal, int *d_minIndices, int n)
+// __global__ void findMinIndices(int *d_njMatrix, int *d_rowSums, int *d_minVal, int *d_minIndexI, int *d_minIndexJ, int *d_delta, int n)
+// {
+//     long block_Idx = blockIdx.x + (gridDim.x) * blockIdx.y + (gridDim.y * gridDim.x) * blockIdx.z;
+//     long thread_Idx = threadIdx.x + (blockDim.x) * threadIdx.y + (blockDim.y * blockDim.x) * threadIdx.z;
+//     long block_Capacity = blockDim.x * blockDim.y * blockDim.z;
+//     long arr_Idx = block_Idx * block_Capacity + thread_Idx;
+
+//     int i = arr_Idx / n;
+//     int j = arr_Idx % n;
+
+//     if (i < n && j < n && i != j)
+//     {
+//         int val = d_njMatrix[arr_Idx];
+
+//         atomicMin(d_minVal, val);
+
+//         __syncthreads();
+
+//         if (*d_minVal == val)
+//         {
+//             *d_minIndexI = i;
+//             *d_minIndexJ = j;
+//             *d_delta = (d_rowSums[i] - d_rowSums[j]) / (n - 2);
+//         }
+//     }
+// }
+__global__ void findMinIndices(int *d_njMatrix, int *d_rowSums, int *d_minVal, int *d_minIndexI, int *d_minIndexJ, int *d_delta, int n)
 {
     extern __shared__ int sharedData[];
+    extern __shared__ int sharedIndices[];
 
-    int tid = threadIdx.x;
-    int index = blockIdx.x * blockDim.x + threadIdx.x;
+    long block_Idx = blockIdx.x + (gridDim.x) * blockIdx.y + (gridDim.y * gridDim.x) * blockIdx.z;
+    long thread_Idx = threadIdx.x + (blockDim.x) * threadIdx.y + (blockDim.y * blockDim.x) * threadIdx.z;
+    long block_Capacity = blockDim.x * blockDim.y * blockDim.z;
+    long arr_Idx = block_Idx * block_Capacity + thread_Idx;
 
-    // Load elements into shared memory
-    sharedData[tid] = d_njMatrix[index];
+    int i = arr_Idx / n;
+    int j = arr_Idx % n;
+
+    if (i < n && j < n && i != j)
+    {
+        sharedData[thread_Idx] = d_njMatrix[arr_Idx];
+        sharedIndices[thread_Idx] = arr_Idx;
+    }
+    else
+    {
+        sharedData[thread_Idx] = INT_MAX;
+    }
+
     __syncthreads();
 
-    // Reduction to find minimum
-    for (int s = blockDim.x / 2; s > 0; s >>= 1)
+    for (unsigned int s = blockDim.x / 2; s > 0; s >>= 1)
     {
-        if (tid < s)
+        if (thread_Idx < s)
         {
-            if (sharedData[tid] > sharedData[tid + s])
+            if (sharedData[thread_Idx] > sharedData[thread_Idx + s])
             {
-                sharedData[tid] = sharedData[tid + s];
-                d_minIndices[blockIdx.x] = index + s;
+                sharedData[thread_Idx] = sharedData[thread_Idx + s];
+                sharedIndices[thread_Idx] = sharedIndices[thread_Idx + s];
             }
         }
         __syncthreads();
     }
 
-    // Write the result for this block to global memory
-    if (tid == 0)
+    if (thread_Idx == 0)
     {
-        d_minVal[blockIdx.x] = sharedData[0];
-    }
-}
-
-__global__ void computeDelta(int *d_rowSums, int *d_delta, int *d_minIndices, int n)
-{
-    int index = threadIdx.x;
-
-    if (index == 0)
-    {
-        d_delta[0] = (d_rowSums[d_minIndices[0]] - d_rowSums[d_minIndices[1]]) / (n - 2);
+        *d_minVal = sharedData[0];
+        *d_minIndexI = sharedIndices[0] / n;
+        *d_minIndexJ = sharedIndices[0] % n;
+        *d_delta = (d_rowSums[*d_minIndexI] - d_rowSums[*d_minIndexJ]) / (n - 2);
     }
 }
 
@@ -140,29 +171,29 @@ int main()
         cout << endl;
     }
 
-    int *minVal = new int[n - 1];
-    int *minIndices = new int[n - 1];
-    int *d_minVal;
-    int *d_minIndices;
-    cudaMalloc(&d_minVal, (n - 1) * sizeof(int));
-    cudaMalloc(&d_minIndices, (n - 1) * sizeof(int));
-    findMinAndComputeDelta<<<numBlocks, blockSize, blockSize.x * sizeof(int)>>>(d_njMatrix, d_sums, d_minVal, d_minIndices, n);
+    int *d_minVal, *d_minIndexI, *d_minIndexJ, *d_delta;
+    cudaMalloc(&d_minVal, sizeof(int));
+    cudaMalloc(&d_minIndexI, sizeof(int));
+    cudaMalloc(&d_minIndexJ, sizeof(int));
+    cudaMalloc(&d_delta, sizeof(int));
+    cudaMemcpy(d_minVal, new int, sizeof(int), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_minIndexI, new int, sizeof(int), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_minIndexJ, new int, sizeof(int), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_delta, new int, sizeof(int), cudaMemcpyHostToDevice);
+
+    //shared memory
+    int sharedMemSize = blockSize.x * sizeof(int);
+
+
+    findMinIndices<<<numBlocks, blockSize,sharedMemSize>>>(d_njMatrix, d_sums, d_minVal, d_minIndexI, d_minIndexJ, d_delta, n);
     cudaDeviceSynchronize();
-    cudaMemcpy(minVal, d_minVal, (n - 1) * sizeof(int), cudaMemcpyDeviceToHost);
-    cudaMemcpy(minIndices, d_minIndices, (n - 1) * sizeof(int), cudaMemcpyDeviceToHost);
-    cout << "Minimum values: " << endl;
-    for (int i = 0; i < n - 1; ++i)
-    {
-        cout << minVal[i] << " ";
-    }
-    cout << endl;
-    cout << "Minimum indices: " << endl;
-    for (int i = 0; i < n - 1; ++i)
-    {
-        cout << minIndices[i] << " ";
-    }
-    cout << endl;
+    //print the deltas
+    int delta;
     
+    cudaMemcpy(&delta, d_delta, sizeof(int), cudaMemcpyDeviceToHost);
+    cout << "Delta: " << delta << endl;
+
+  
 
     delete[] matrix;
     delete[] sums;
