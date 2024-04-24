@@ -17,16 +17,6 @@ vector<ll> rowsum(vector<vector<ll>> matrix, ll n)
     }
     return sums;
 }
-// vector<ll> rowsum(vector<vector<ll>> matrix, ll n)
-// {
-//     vector<ll> sums(n, 0);
-//     for(ll i=0;i<n;i++)
-//     {
-//         sums[i] = accumulate(matrix[i].begin(), matrix[i].end(), 0LL);
-//     }
-//     return sums;
-// }
-//here we will check the time of the above functions, the onne which is slower will be used
 
 vector<vector<ll>> neighborJoiningMatrix(vector<vector<ll>>& matrix, vector<ll>& rowSums, ll n) {
     vector<vector<ll>> njMatrix(n, vector<ll>(n, 0));
@@ -106,7 +96,7 @@ void compute(vector<vector<ll>> & matrix , vector<vector<ll>> &tree , int n){
     pair<ll,pair<ll,ll>> minDel;
     vector<vector<ll>> oldMat = matrix;
     vector<vector<ll>> newMat;
-    vector<vector<ll>> edgeWeights(100, vector<ll> (100 , 0));
+    vector<vector<ll>> edgeWeights(1e4, vector<ll> (1e4 , 0));
     // think how to store weights
     for(ll i = 0 ; i < n ; i ++) prev[i] = i;
     while(n-2){
@@ -159,18 +149,19 @@ void compute(vector<vector<ll>> & matrix , vector<vector<ll>> &tree , int n){
 }
 
 
-int main(){
+int main(int argc, char** argv){
     ll n;
-    cout<<"Enter Size of the matrix: ";
+    // cout<<"Enter Size of the matrix: ";
     cin>>n;
     //define 2d vector
     vector<vector<ll>> matrix(n, vector<ll>(n));
-    cout<<"Enter the elements of the matrix: ";
+    // cout<<"Enter the elements of the matrix: ";
     for(ll i=0;i<n;i++){
         for(ll j=0;j<n;j++){
             cin>>matrix[i][j];
         }
     }
+    // ofstream outfile("cpp.out");
 
     vector<vector<ll>> tree(n);
 

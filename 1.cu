@@ -119,6 +119,7 @@ int main(int argc, char **argv)
     }
 
     ofstream outfile("cuda.out");
+    
     int *sums = new int[n];
     int *d_matrix;
     int *d_sums;

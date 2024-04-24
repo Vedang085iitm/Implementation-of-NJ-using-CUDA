@@ -2,6 +2,8 @@
 #include <numeric>
 #include <chrono>
 #include <thread>
+#include <fstream>
+
 using namespace std;
 typedef long ll;
 
@@ -90,45 +92,47 @@ vector<vector<ll>> formNewMatrix(vector<vector<ll>>& D, ll i, ll j) {
 }
 
 
-int main(){
+int main(int argc, char** argv){
     ll n;
-    cout<<"Enter Size of the matrix: ";
+    //outfile<<"Enter Size of the matrix: ";
     cin>>n;
     //define 2d vector
     vector<vector<ll>> matrix(n, vector<ll>(n));
-    cout<<"Enter the elements of the matrix: ";
+    //outfile<<"Enter the elements of the matrix: ";
     for(ll i=0;i<n;i++){
         for(ll j=0;j<n;j++){
             cin>>matrix[i][j];
         }
     }
 
+    ofstream outfile("cpp.out");
+
     auto start = chrono::high_resolution_clock::now();
 
     vector<ll> sums = rowsum(matrix, n);
 
-    cout << "The sum of each row is:\n";
+    outfile << "The sum of each row is:\n";
     for (const auto& sum : sums) {
-        cout << sum << '\n';
+        outfile << sum << '\n';
     }
     vector<vector<ll>> njMatrix = neighborJoiningMatrix(matrix, sums, n);
-    cout << "The neighbor joining matrix is:\n";
+    outfile << "The neighbor joining matrix is:\n";
     for (const auto& row : njMatrix) {
         for (const auto& elem : row) {
-            cout << elem << ' ';
+            outfile << elem << ' ';
         }
-        cout << '\n';
+        outfile << '\n';
     }
     pair<ll, pair<ll, ll>> minAndDelta = findMinAndComputeDelta(njMatrix, sums, n);
-    cout << "The minimum value in the neighbor joining matrix is: " << minAndDelta.first << '\n';
+    outfile << "The minimum value in the neighbor joining matrix is: " << minAndDelta.first << '\n';
 
     vector<vector<ll>> newMatrix = formNewMatrix(matrix, minAndDelta.second.first, minAndDelta.second.second);
-    cout << "The new matrix after removing the rows and columns corresponding to the minimum value is:\n";
+    outfile << "The new matrix after removing the rows and columns corresponding to the minimum value is:\n";
     for (const auto& row : newMatrix) {
         for (const auto& elem : row) {
-            cout << elem << ' ';
+            outfile << elem << ' ';
         }
-        cout << '\n';
+        outfile << '\n';
     }
     unsigned int nn = std::thread::hardware_concurrency();
     std::cout << "Number of concurrent threads supported: " << nn << "\n";
@@ -138,6 +142,6 @@ int main(){
     auto duration = chrono::duration_cast<chrono::microseconds>(stop - start);
     
 
-    cout << "Time taken by function: " << duration.count() << " microseconds" << endl;
+    outfile << "Time taken by function: " << duration.count() << " microseconds" << endl;
     return 0;
 }
