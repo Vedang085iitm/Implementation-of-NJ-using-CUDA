@@ -1,7 +1,6 @@
 #include <bits/stdc++.h>
 #include <numeric>
 #include <chrono>
-#include <thread>
 using namespace std;
 typedef long ll;
 
@@ -18,6 +17,16 @@ vector<ll> rowsum(vector<vector<ll>> matrix, ll n)
     }
     return sums;
 }
+// vector<ll> rowsum(vector<vector<ll>> matrix, ll n)
+// {
+//     vector<ll> sums(n, 0);
+//     for(ll i=0;i<n;i++)
+//     {
+//         sums[i] = accumulate(matrix[i].begin(), matrix[i].end(), 0LL);
+//     }
+//     return sums;
+// }
+//here we will check the time of the above functions, the onne which is slower will be used
 
 vector<vector<ll>> neighborJoiningMatrix(vector<vector<ll>>& matrix, vector<ll>& rowSums, ll n) {
     vector<vector<ll>> njMatrix(n, vector<ll>(n, 0));
@@ -62,7 +71,6 @@ pair<ll, ll> calculateLimbLengths(vector<vector<ll>>& D, ll i, ll j, ll delta) {
 
 vector<vector<ll>> formNewMatrix(vector<vector<ll>>& D, ll i, ll j) {
     ll n = D.size();
-    cout << n << endl;
     vector<vector<ll>> D_prime(n - 1, vector<ll>(n - 1 , 0));
     ll rct = 1;
     ll cct;
@@ -89,6 +97,67 @@ vector<vector<ll>> formNewMatrix(vector<vector<ll>>& D, ll i, ll j) {
     return D_prime;
 }
 
+void compute(vector<vector<ll>> & matrix , vector<vector<ll>> &tree , int n){
+    ll top = n;
+    vector<ll> prev(n , 0);
+    vector<ll> next(n , 0);
+    vector<ll> sums;
+    vector<vector<ll>> njMat;
+    pair<ll,pair<ll,ll>> minDel;
+    vector<vector<ll>> oldMat = matrix;
+    vector<vector<ll>> newMat;
+    vector<vector<ll>> edgeWeights(100, vector<ll> (100 , 0));
+    // think how to store weights
+    for(ll i = 0 ; i < n ; i ++) prev[i] = i;
+    while(n-2){
+        sums = rowsum(oldMat , n);
+        njMat = neighborJoiningMatrix(oldMat , sums , n);
+        minDel = findMinAndComputeDelta(njMat , sums , n);
+        ll i_node = minDel.second.first;
+        ll j_node = minDel.second.second;
+        ll delta = minDel.first;
+        newMat = formNewMatrix(oldMat , i_node , j_node);
+        tree.push_back(vector<ll>()); // pushed in merged node
+        for(ll i = 0 ; i < n ; i ++){
+            for(ll j = 0 ; j < n ; j ++){
+                cout << oldMat[i][j] << " ";
+            }
+            cout << endl;
+        }
+        cout << endl;
+        pair<ll,ll> pr = calculateLimbLengths(oldMat , i_node , j_node , delta); 
+        edgeWeights[prev[i_node]][top] = pr.first;
+        edgeWeights[prev[j_node]][top] = pr.second;
+        edgeWeights[top][prev[i_node]] = pr.first;
+        edgeWeights[top][prev[j_node]] = pr.second;
+        tree[top].push_back(prev[i_node]);
+        tree[top].push_back(prev[j_node]);
+        tree[prev[i_node]].push_back(top);
+        tree[prev[j_node]].push_back(top);
+        // add edge weights
+        next[0] = top;
+        ll ct = 1;
+        for(ll i = 0 ; i < n ; i++){
+            if(i!=i_node && i!=j_node) next[ct++] = prev[i];
+        }
+        prev = next;
+        oldMat = newMat;
+        top++;
+        n--;
+    }
+    tree[next[0]].push_back(next[1]);
+    tree[next[1]].push_back(next[0]);
+    edgeWeights[next[0]][next[1]] = newMat[0][1];
+    edgeWeights[next[1]][next[0]] = newMat[0][1];
+
+    for(int i = 0 ; i < top ; i++){
+        for(int j = 0 ; j < top ; j++){
+            cout << edgeWeights[i][j] << " ";
+        }
+        cout << endl;
+    }
+}
+
 
 int main(){
     ll n;
@@ -103,40 +172,15 @@ int main(){
         }
     }
 
+    vector<vector<ll>> tree(n);
+
     auto start = chrono::high_resolution_clock::now();
 
-    vector<ll> sums = rowsum(matrix, n);
-
-    cout << "The sum of each row is:\n";
-    for (const auto& sum : sums) {
-        cout << sum << '\n';
-    }
-    vector<vector<ll>> njMatrix = neighborJoiningMatrix(matrix, sums, n);
-    cout << "The neighbor joining matrix is:\n";
-    for (const auto& row : njMatrix) {
-        for (const auto& elem : row) {
-            cout << elem << ' ';
-        }
-        cout << '\n';
-    }
-    pair<ll, pair<ll, ll>> minAndDelta = findMinAndComputeDelta(njMatrix, sums, n);
-    cout << "The minimum value in the neighbor joining matrix is: " << minAndDelta.first << '\n';
-
-    vector<vector<ll>> newMatrix = formNewMatrix(matrix, minAndDelta.second.first, minAndDelta.second.second);
-    cout << "The new matrix after removing the rows and columns corresponding to the minimum value is:\n";
-    for (const auto& row : newMatrix) {
-        for (const auto& elem : row) {
-            cout << elem << ' ';
-        }
-        cout << '\n';
-    }
-    unsigned int nn = std::thread::hardware_concurrency();
-    std::cout << "Number of concurrent threads supported: " << nn << "\n";
-   
+    compute(matrix , tree , n);
 
     auto stop = chrono::high_resolution_clock::now();
-    auto duration = chrono::duration_cast<chrono::microseconds>(stop - start);
     
+    auto duration = chrono::duration_cast<chrono::microseconds>(stop - start);
 
     cout << "Time taken by function: " << duration.count() << " microseconds" << endl;
     return 0;

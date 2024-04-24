@@ -1,0 +1,8 @@
+Row sums: 
+56 38 46 48 
+Neighbor joining matrix: 
+0 -68 -60 -60 
+-68 0 -60 -60 
+-60 -60 0 -68 
+-60 -60 -68 0 
+Delta: 9
