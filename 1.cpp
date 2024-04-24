@@ -1,6 +1,7 @@
 #include <bits/stdc++.h>
 #include <numeric>
 #include <chrono>
+#include <thread>
 using namespace std;
 typedef long ll;
 
@@ -129,9 +130,13 @@ int main(){
         }
         cout << '\n';
     }
+    unsigned int nn = std::thread::hardware_concurrency();
+    std::cout << "Number of concurrent threads supported: " << nn << "\n";
+   
 
     auto stop = chrono::high_resolution_clock::now();
     auto duration = chrono::duration_cast<chrono::microseconds>(stop - start);
+    
 
     cout << "Time taken by function: " << duration.count() << " microseconds" << endl;
     return 0;

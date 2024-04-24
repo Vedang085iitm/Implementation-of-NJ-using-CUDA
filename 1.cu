@@ -3,6 +3,9 @@
 #include <chrono>
 #include <cuda_runtime.h>
 #include <cuda.h>
+#include <stdio.h>
+#include <fstream>
+
 using namespace std;
 
 using std::cin;
@@ -121,12 +124,13 @@ __global__ void findMinIndices(int *d_njMatrix, int *d_rowSums, int *d_minVal, i
     }
 }
 
-int main()
+int main(int argc, char **argv)
 {
+
     int n;
-    cout << "Enter the size of the matrix: " << endl;
+    // cout << "Enter the size of the matrix: " << endl;
     cin >> n;
-    cout << "Enter the matrix: " << endl;
+    // cout << "Enter the matrix: " << endl;
     int *matrix = new int[n * n];
     for (int i = 0; i < n; ++i)
     {
@@ -135,6 +139,8 @@ int main()
             cin >> matrix[i * n + j];
         }
     }
+
+    ofstream outfile("output.txt");
     int *sums = new int[n];
     int *d_matrix;
     int *d_sums;
@@ -145,30 +151,38 @@ int main()
     dim3 blockSize(512);
     dim3 numBlocks((n + blockSize.x - 1) / blockSize.x);
 
+    auto start = std::chrono::high_resolution_clock::now();
     rowsum<<<numBlocks, blockSize>>>(d_matrix, d_sums, n);
     cudaDeviceSynchronize();
-    cout << "Row sums: " << endl;
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> elapsed1 = end - start;
+
+    outfile << "Row sums: " << endl;
     cudaMemcpy(sums, d_sums, n * sizeof(int), cudaMemcpyDeviceToHost);
     for (int i = 0; i < n; ++i)
     {
-        cout << sums[i] << " ";
+        outfile << sums[i] << " ";
     }
-    cout << endl;
+    outfile << endl;
 
     int *njMatrix = new int[n * n];
     int *d_njMatrix;
     cudaMalloc(&d_njMatrix, n * n * sizeof(int));
+     start = std::chrono::high_resolution_clock::now();
     neighborJoiningMatrix<<<numBlocks, blockSize>>>(d_matrix, d_sums, d_njMatrix, n);
     cudaDeviceSynchronize();
+     end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> elapsed2 = end - start;
+
     cudaMemcpy(njMatrix, d_njMatrix, n * n * sizeof(int), cudaMemcpyDeviceToHost);
-    cout << "Neighbor joining matrix: " << endl;
+    outfile << "Neighbor joining matrix: " << endl;
     for (int i = 0; i < n; ++i)
     {
         for (int j = 0; j < n; ++j)
         {
-            cout << njMatrix[i * n + j] << " ";
+            outfile << njMatrix[i * n + j] << " ";
         }
-        cout << endl;
+        outfile << endl;
     }
 
     int *d_minVal, *d_minIndexI, *d_minIndexJ, *d_delta;
@@ -181,25 +195,37 @@ int main()
     cudaMemcpy(d_minIndexJ, new int, sizeof(int), cudaMemcpyHostToDevice);
     cudaMemcpy(d_delta, new int, sizeof(int), cudaMemcpyHostToDevice);
 
-    //shared memory
+    // shared memory
     int sharedMemSize = blockSize.x * sizeof(int);
-
-
-    findMinIndices<<<numBlocks, blockSize,sharedMemSize>>>(d_njMatrix, d_sums, d_minVal, d_minIndexI, d_minIndexJ, d_delta, n);
+     start = std::chrono::high_resolution_clock::now();
+    findMinIndices<<<numBlocks, blockSize, sharedMemSize>>>(d_njMatrix, d_sums, d_minVal, d_minIndexI, d_minIndexJ, d_delta, n);
     cudaDeviceSynchronize();
-    //print the deltas
-    int delta;
-    
-    cudaMemcpy(&delta, d_delta, sizeof(int), cudaMemcpyDeviceToHost);
-    cout << "Delta: " << delta << endl;
+     end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> elapsed3 = end - start;
 
-  
+    // print the deltas
+    int delta;
+
+    cudaMemcpy(&delta, d_delta, sizeof(int), cudaMemcpyDeviceToHost);
+    outfile << "Delta: " << delta << endl;
+
+    //print the timings in another file
+     std::ofstream file2("cuda_timing.out");
+    if(file2.is_open()) {
+        file2 << elapsed1.count() << "\n";
+        file2 << elapsed2.count() << "\n";
+        file2 << elapsed3.count() << "\n";
+        file2.close();
+    } else {
+        std::cout << "Unable to open file";
+    }
 
     delete[] matrix;
     delete[] sums;
     cudaFree(d_matrix);
     cudaFree(d_sums);
     cudaFree(d_njMatrix);
-    
+    outfile.close();
+
     return 0;
 }
