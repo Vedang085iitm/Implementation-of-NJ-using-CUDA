@@ -51,32 +51,6 @@ __global__ void neighborJoiningMatrix(int *d_matrix, int *d_rowSums, int *d_njMa
     }
 }
 
-// __global__ void findMinIndices(int *d_njMatrix, int *d_rowSums, int *d_minVal, int *d_minIndexI, int *d_minIndexJ, int *d_delta, int n)
-// {
-//     long block_Idx = blockIdx.x + (gridDim.x) * blockIdx.y + (gridDim.y * gridDim.x) * blockIdx.z;
-//     long thread_Idx = threadIdx.x + (blockDim.x) * threadIdx.y + (blockDim.y * blockDim.x) * threadIdx.z;
-//     long block_Capacity = blockDim.x * blockDim.y * blockDim.z;
-//     long arr_Idx = block_Idx * block_Capacity + thread_Idx;
-
-//     int i = arr_Idx / n;
-//     int j = arr_Idx % n;
-
-//     if (i < n && j < n && i != j)
-//     {
-//         int val = d_njMatrix[arr_Idx];
-
-//         atomicMin(d_minVal, val);
-
-//         __syncthreads();
-
-//         if (*d_minVal == val)
-//         {
-//             *d_minIndexI = i;
-//             *d_minIndexJ = j;
-//             *d_delta = (d_rowSums[i] - d_rowSums[j]) / (n - 2);
-//         }
-//     }
-// }
 __global__ void findMinIndices(int *d_njMatrix, int *d_rowSums, int *d_minVal, int *d_minIndexI, int *d_minIndexJ, int *d_delta, int n)
 {
     extern __shared__ int sharedData[];
@@ -114,14 +88,18 @@ __global__ void findMinIndices(int *d_njMatrix, int *d_rowSums, int *d_minVal, i
         }
         __syncthreads();
     }
-
+  
     if (thread_Idx == 0)
     {
         *d_minVal = sharedData[0];
+     
         *d_minIndexI = sharedIndices[0] / n;
         *d_minIndexJ = sharedIndices[0] % n;
         *d_delta = (d_rowSums[*d_minIndexI] - d_rowSums[*d_minIndexJ]) / (n - 2);
     }
+ 
+__syncthreads();
+
 }
 
 int main(int argc, char **argv)
@@ -140,7 +118,7 @@ int main(int argc, char **argv)
         }
     }
 
-    ofstream outfile("output.txt");
+    ofstream outfile("cuda.out");
     int *sums = new int[n];
     int *d_matrix;
     int *d_sums;
@@ -156,6 +134,10 @@ int main(int argc, char **argv)
     cudaDeviceSynchronize();
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed1 = end - start;
+    // cast it to microseconds
+auto elapsed1_casted = std::chrono::duration_cast<std::chrono::microseconds>(elapsed1).count();
+
+     
 
     outfile << "Row sums: " << endl;
     cudaMemcpy(sums, d_sums, n * sizeof(int), cudaMemcpyDeviceToHost);
@@ -173,6 +155,8 @@ int main(int argc, char **argv)
     cudaDeviceSynchronize();
      end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed2 = end - start;
+  auto elapsed2_casted = std::chrono::duration_cast<std::chrono::microseconds>(elapsed2).count();
+
 
     cudaMemcpy(njMatrix, d_njMatrix, n * n * sizeof(int), cudaMemcpyDeviceToHost);
     outfile << "Neighbor joining matrix: " << endl;
@@ -202,6 +186,14 @@ int main(int argc, char **argv)
     cudaDeviceSynchronize();
      end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed3 = end - start;
+ auto elapsed3_casted = std::chrono::duration_cast<std::chrono::microseconds>(elapsed3).count();
+
+
+//         int h_minVal;
+// cudaMemcpy(&h_minVal, d_minVal, sizeof(int), cudaMemcpyDeviceToHost);
+
+// // Print the minimum value
+// std::cout << "Minimum Value: " << h_minVal << std::endl;
 
     // print the deltas
     int delta;
@@ -209,16 +201,19 @@ int main(int argc, char **argv)
     cudaMemcpy(&delta, d_delta, sizeof(int), cudaMemcpyDeviceToHost);
     outfile << "Delta: " << delta << endl;
 
+    
+
     //print the timings in another file
-     std::ofstream file2("cuda_timing.out");
-    if(file2.is_open()) {
-        file2 << elapsed1.count() << "\n";
-        file2 << elapsed2.count() << "\n";
-        file2 << elapsed3.count() << "\n";
-        file2.close();
-    } else {
-        std::cout << "Unable to open file";
-    }
+   std::ofstream file2("cuda_timing.out");
+if(file2.is_open()) {
+    //print the casted values
+    file2 <<"For rowsum: " <<elapsed1_casted << " Microseconds"<<"\n";
+    file2 <<"For NEIGHBORJOINING matrix: "<< elapsed2_casted << " Microseconds" <<"\n";
+    file2 << "For MinIndices: "<<elapsed3_casted << "Microseconds"<<"\n";
+    file2.close();
+} else {
+    std::cout << "Unable to open file";
+}
 
     delete[] matrix;
     delete[] sums;
