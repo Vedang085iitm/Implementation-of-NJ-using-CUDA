@@ -1,68 +1,82 @@
 #include <iostream>
 #include <fstream>
+#include <sstream>
+#include <vector>
 
 using namespace std;
+#include <fstream>
+#include <sstream>
+#include <vector>
+#include <utility>
 
-class TreeNode {
-public:
-    int value;
-    TreeNode *left;
-    TreeNode *right;
-
-    TreeNode(int val) : value(val), left(nullptr), right(nullptr) {}
-};
-
-// Function to generate a Graphviz representation of the tree
-void generateGraphviz(TreeNode *root, ofstream &file) {
-    if (root == nullptr) return;
-
-    file << "\t" << root->value << ";\n";
-
-    if (root->left != nullptr) {
-        file << "\t" << root->value << " -> " << root->left->value << ";\n";
-        generateGraphviz(root->left, file);
+vector<pair<int, vector<int>>> readInputFromFile(const string &filename) {
+    ifstream file(filename);
+    if (!file.is_open()) {
+        cerr << "Could not open file: " << filename << endl;
+        return {};
     }
-    if (root->right != nullptr) {
-        file << "\t" << root->value << " -> " << root->right->value << ";\n";
-        generateGraphviz(root->right, file);
+
+    vector<pair<int, vector<int>>> input;
+    string line;
+    while (getline(file, line)) {
+        stringstream ss(line);
+        int parent;
+        ss >> parent;
+        ss.ignore(3); // Skip " ->"
+
+        vector<int> children;
+        int child;
+        while (ss >> child) {
+            children.push_back(child);
+        }
+
+        input.push_back({parent, children});
     }
+
+    return input;
 }
 
-// Function to generate a Graphviz file
-void generateGraphvizFile(TreeNode *root, const string &filename) {
-    ofstream file(filename);
-
-    file << "digraph Tree {\n";
-    generateGraphviz(root, file);
-    file << "}\n";
-
-    file.close();
-}
 
 int main() {
-    // Constructing a sample tree
-    TreeNode *root = new TreeNode(1);
-    root->left = new TreeNode(2);
-    root->right = new TreeNode(3);
-    root->left->left = new TreeNode(4);
-    root->left->right = new TreeNode(5);
-    root->right->left = new TreeNode(6);
-    root->right->right = new TreeNode(7);
+vector<pair<int, vector<int>>> input = readInputFromFile("treeinput.txt");
+    // Find the maximum node value
+    int maxNode = 0;
+    for (const auto &item : input) {
+        maxNode = max(maxNode, item.first);
+        for (int child : item.second) {
+            maxNode = max(maxNode, child);
+        }
+    }
 
-    // Generate the Graphviz file
-    generateGraphvizFile(root, "tree.dot");
+    // Declare the adjacencyList variable and resize it
+    vector<vector<int>> adjacencyList(maxNode + 1);
 
-    // Convert the Graphviz file to an image using the 'dot' command
-    system("dot -Tpng tree.dot -o tree.png");
+    // Constructing the adjacency list
+    for (auto &item : input) {
+        int node = item.first;
+        vector<int> adjacentNodes = item.second;
+        adjacencyList[node] = adjacentNodes;
+    }
 
-    // Clean up
-    delete root->left->left;
-    delete root->left->right;
-    delete root->right->left;
-    delete root->right->right;
-    delete root->left;
-    delete root->right;
-    delete root;
+// Write the DOT code for the graph structure
+ofstream outputFile("graph.dot");
+
+if (!outputFile) {
+    cerr << "Error: Unable to open output file." << endl;
+    return 1;
+}
+
+outputFile << "graph {" << endl;
+for (int node = 0; node < adjacencyList.size(); ++node) {
+    for (int adjacentNode : adjacencyList[node]) {
+        outputFile << node << " -- " << adjacentNode << ";" << endl;
+    }
+}
+outputFile << "}" << endl;
+
+outputFile.close();
+
+    cout << "Graph DOT file generated successfully." << endl;
 
     return 0;
 }

@@ -1,16 +1,29 @@
 #include <bits/stdc++.h>
 #include <numeric>
 #include <chrono>
+#include <fstream>
 using namespace std;
 typedef long ll;
 
-vector<ll> rowsum(vector<vector<ll>> matrix, ll n)
-{
+// vector<ll> rowsum(vector<vector<ll>> matrix, ll n)
+// {
     
-    vector<ll> sums(n, 0);
-    for(ll i=0;i<n;i++)
+//     vector<ll> sums(n, 0);
+//     for(ll i=0;i<n;i++)
+//     {
+//         for(ll j=0;j<n;j++)
+//         {
+//             sums[i] += matrix[i][j];
+//         }
+//     }
+//     return sums;
+// }
+vector<float> rowsum(vector<vector<float>> matrix, int n)
+{
+    vector<float> sums(n, 0.0f);
+    for(ll i=0; i<n; i++)
     {
-        for(ll j=0;j<n;j++)
+        for(ll j=0; j<n; j++)
         {
             sums[i] += matrix[i][j];
         }
@@ -18,8 +31,22 @@ vector<ll> rowsum(vector<vector<ll>> matrix, ll n)
     return sums;
 }
 
-vector<vector<ll>> neighborJoiningMatrix(vector<vector<ll>>& matrix, vector<ll>& rowSums, ll n) {
-    vector<vector<ll>> njMatrix(n, vector<ll>(n, 0));
+// vector<vector<ll>> neighborJoiningMatrix(vector<vector<ll>>& matrix, vector<ll>& rowSums, ll n) {
+//     vector<vector<ll>> njMatrix(n, vector<ll>(n, 0));
+
+//     for(ll i = 0; i < n; i++) {
+//         for(ll j = 0; j < n; j++) {
+//             if(i == j) {
+//                 njMatrix[i][j] = 0;
+//                 continue;
+//             }
+//             njMatrix[i][j] = (n - 2) * matrix[i][j] - rowSums[i] - rowSums[j];
+//         }
+//     }
+//     return njMatrix;
+// }
+vector<vector<float>> neighborJoiningMatrix(vector<vector<float>>& matrix, vector<float>& rowSums, ll n) {
+    vector<vector<float>> njMatrix(n, vector<float>(n, 0.0f));
 
     for(ll i = 0; i < n; i++) {
         for(ll j = 0; j < n; j++) {
@@ -32,9 +59,23 @@ vector<vector<ll>> neighborJoiningMatrix(vector<vector<ll>>& matrix, vector<ll>&
     }
     return njMatrix;
 }
+// pair<ll, pair<ll, ll>> findMinAndComputeDelta(vector<vector<ll>>& njMatrix, vector<ll>& rowSums, ll n) {
+//     ll minVal = LLONG_MAX;
+//     pair<ll, ll> minIndices;
+//     for(ll i = 0; i < n; i++) {
+//         for(ll j = 0; j < n; j++) {
+//             if(i != j && njMatrix[i][j] < minVal) {
+//                 minVal = njMatrix[i][j];
+//                 minIndices = make_pair(i, j);
+//             }
+//         }
+//     }
 
-pair<ll, pair<ll, ll>> findMinAndComputeDelta(vector<vector<ll>>& njMatrix, vector<ll>& rowSums, ll n) {
-    ll minVal = LLONG_MAX;
+//     ll delta = (rowSums[minIndices.first] - rowSums[minIndices.second]) / (n - 2);
+//     return make_pair(delta, minIndices);
+// }
+pair<float, pair<ll, ll>> findMinAndComputeDelta(vector<vector<float>>& njMatrix, vector<float>& rowSums, ll n) {
+    float minVal = LLONG_MAX*1.0;
     pair<ll, ll> minIndices;
     for(ll i = 0; i < n; i++) {
         for(ll j = 0; j < n; j++) {
@@ -45,23 +86,23 @@ pair<ll, pair<ll, ll>> findMinAndComputeDelta(vector<vector<ll>>& njMatrix, vect
         }
     }
 
-    ll delta = (rowSums[minIndices.first] - rowSums[minIndices.second]) / (n - 2);
+    float delta = (rowSums[minIndices.first] - rowSums[minIndices.second]) / (n - 2);
     return make_pair(delta, minIndices);
 }
 
 
 
-pair<ll, ll> calculateLimbLengths(vector<vector<ll>>& D, ll i, ll j, ll delta) {
-    ll limbLengthI = (D[i][j] + delta) / 2;
-    ll limbLengthJ = (D[i][j] - delta) / 2;
+pair<float, float> calculateLimbLengths(vector<vector<float>>& D, int i, int j, float delta) {
+    float limbLengthI = (D[i][j] + delta) / 2.0f;
+    float limbLengthJ = (D[i][j] - delta) / 2.0f;
 
     return make_pair(limbLengthI, limbLengthJ);
 }
 
 
-vector<vector<ll>> formNewMatrix(vector<vector<ll>>& D, ll i, ll j) {
-    ll n = D.size();
-    vector<vector<ll>> D_prime(n - 1, vector<ll>(n - 1 , 0));
+vector<vector<float>> formNewMatrix(vector<vector<float>>& D, ll i, ll j) {
+    float n = D.size();
+    vector<vector<float>> D_prime(n - 1, vector<float>(n - 1 , 0));
     ll rct = 1;
     ll cct;
     for(ll k = 0 ; k < n ; k++){
@@ -87,35 +128,70 @@ vector<vector<ll>> formNewMatrix(vector<vector<ll>>& D, ll i, ll j) {
     return D_prime;
 }
 
-void compute(vector<vector<ll>> & matrix , vector<vector<ll>> &tree , int n){
-    ll top = n;
-    vector<ll> prev(n , 0);
-    vector<ll> next(n , 0);
-    vector<ll> sums;
-    vector<vector<ll>> njMat;
-    pair<ll,pair<ll,ll>> minDel;
-    vector<vector<ll>> oldMat = matrix;
-    vector<vector<ll>> newMat;
-    vector<vector<ll>> edgeWeights(1e4, vector<ll> (1e4 , 0));
-    // think how to store weights
-    for(ll i = 0 ; i < n ; i ++) prev[i] = i;
-    while(n-2){
-        sums = rowsum(oldMat , n);
-        njMat = neighborJoiningMatrix(oldMat , sums , n);
+// void compute(vector<vector<ll>> & matrix , vector<vector<ll>> &tree , vector<vector<ll>> & edgeWeights , int n){
+//     ll top = n;  
+//     vector<ll> prev(n , 0);   
+//     vector<ll> next(n , 0);   
+//     vector<ll> sums;          
+//     vector<vector<ll>> njMat;   
+//     pair<ll,pair<ll,ll>> minDel;  
+//     vector<vector<ll>> oldMat = matrix; 
+//     vector<vector<ll>> newMat;
+//     for(ll i = 0 ; i < n ; i ++) prev[i] = i; 
+//     while(n-2){ 
+//         sums = rowsum(oldMat , n); 
+//         njMat = neighborJoiningMatrix(oldMat , sums , n);  
+//         minDel = findMinAndComputeDelta(njMat , sums , n);
+//         ll i_node = minDel.second.first; 
+//         ll j_node = minDel.second.second; 
+//         ll delta = minDel.first; 
+//         newMat = formNewMatrix(oldMat , i_node , j_node); 
+//         tree.push_back(vector<ll>()); // pushed in merged node 
+//         pair<ll,ll> pr = calculateLimbLengths(oldMat , i_node , j_node , delta); 
+//         edgeWeights[prev[i_node]][top] = pr.first;
+//         edgeWeights[prev[j_node]][top] = pr.second;
+//         edgeWeights[top][prev[i_node]] = pr.first;
+//         edgeWeights[top][prev[j_node]] = pr.second;
+//         tree[top].push_back(prev[i_node]);
+//         tree[top].push_back(prev[j_node]);
+//         tree[prev[i_node]].push_back(top);
+//         tree[prev[j_node]].push_back(top);
+//         // add edge weights
+//         next[0] = top;
+//         ll ct = 1;
+//         for(ll i = 0 ; i < n ; i++){
+//             if(i!=i_node && i!=j_node) next[ct++] = prev[i];
+//         }
+//         prev = next;
+//         oldMat = newMat;
+//         top++;
+//         n--;
+//     }
+//     tree[next[0]].push_back(next[1]);
+//     tree[next[1]].push_back(next[0]);
+//     edgeWeights[next[0]][next[1]] = newMat[0][1];
+//     edgeWeights[next[1]][next[0]] = newMat[0][1];
+// }
+void compute(vector<vector<float>> & matrix , vector<vector<ll>> &tree , vector<vector<float>> & edgeWeights , ll n){
+    ll top = n;  
+    vector<ll> prev(n , 0);   
+    vector<ll> next(n , 0);   
+    vector<float> sums;          
+    vector<vector<float>> njMat;   
+    pair<float,pair<ll,ll>> minDel;  
+    vector<vector<float>> oldMat = matrix; 
+    vector<vector<float>> newMat;
+    for(ll i = 0 ; i < n ; i ++) prev[i] = i; 
+    while(n-2){ 
+        sums = rowsum(oldMat , n); 
+        njMat = neighborJoiningMatrix(oldMat , sums , n);  
         minDel = findMinAndComputeDelta(njMat , sums , n);
-        ll i_node = minDel.second.first;
-        ll j_node = minDel.second.second;
-        ll delta = minDel.first;
-        newMat = formNewMatrix(oldMat , i_node , j_node);
-        tree.push_back(vector<ll>()); // pushed in merged node
-        for(ll i = 0 ; i < n ; i ++){
-            for(ll j = 0 ; j < n ; j ++){
-                cout << oldMat[i][j] << " ";
-            }
-            cout << endl;
-        }
-        cout << endl;
-        pair<ll,ll> pr = calculateLimbLengths(oldMat , i_node , j_node , delta); 
+        ll i_node = minDel.second.first; 
+        ll j_node = minDel.second.second; 
+        float delta = minDel.first; 
+        newMat = formNewMatrix(oldMat , i_node , j_node); 
+        tree.push_back(vector<ll>()); // pushed in merged node 
+        pair<float,float> pr = calculateLimbLengths(oldMat , i_node , j_node , delta); 
         edgeWeights[prev[i_node]][top] = pr.first;
         edgeWeights[prev[j_node]][top] = pr.second;
         edgeWeights[top][prev[i_node]] = pr.first;
@@ -124,7 +200,6 @@ void compute(vector<vector<ll>> & matrix , vector<vector<ll>> &tree , int n){
         tree[top].push_back(prev[j_node]);
         tree[prev[i_node]].push_back(top);
         tree[prev[j_node]].push_back(top);
-        // add edge weights
         next[0] = top;
         ll ct = 1;
         for(ll i = 0 ; i < n ; i++){
@@ -139,23 +214,13 @@ void compute(vector<vector<ll>> & matrix , vector<vector<ll>> &tree , int n){
     tree[next[1]].push_back(next[0]);
     edgeWeights[next[0]][next[1]] = newMat[0][1];
     edgeWeights[next[1]][next[0]] = newMat[0][1];
-
-    for(int i = 0 ; i < top ; i++){
-        for(int j = 0 ; j < top ; j++){
-            cout << edgeWeights[i][j] << " ";
-        }
-        cout << endl;
-    }
 }
 
 
 int main(int argc, char** argv){
     ll n;
-    // cout<<"Enter Size of the matrix: ";
     cin>>n;
-    //define 2d vector
-    vector<vector<ll>> matrix(n, vector<ll>(n));
-    // cout<<"Enter the elements of the matrix: ";
+    vector<vector<float>> matrix(n, vector<float>(n));
     for(ll i=0;i<n;i++){
         for(ll j=0;j<n;j++){
             cin>>matrix[i][j];
@@ -165,14 +230,35 @@ int main(int argc, char** argv){
 
     vector<vector<ll>> tree(n);
 
+    vector<vector<float>> edgeWeights(1e4, vector<float> (1e4 , 0));
+
     auto start = chrono::high_resolution_clock::now();
 
-    compute(matrix , tree , n);
+    compute(matrix , tree , edgeWeights , n);
 
     auto stop = chrono::high_resolution_clock::now();
     
     auto duration = chrono::duration_cast<chrono::microseconds>(stop - start);
 
+    cout << "Printing the tree - \n" << endl;
+
+    ofstream file("treeinput.txt");
+if (!file.is_open()) {
+    cerr << "Could not open file: treeinput.txt" << endl;
+    return 1;
+}
+
+for(int i = 0 ; i < tree.size() ; i++){
+    file << i << " ->";
+    for(auto v : tree[i]){
+        file << v << " ";
+    }
+    file << endl;
+}
+
+file.close();
+    //weights can be queried from edgeWeight array using the corresponding vertices
+    
     cout << "Time taken by function: " << duration.count() << " microseconds" << endl;
     return 0;
 }

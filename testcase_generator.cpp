@@ -2,6 +2,8 @@
 #include <fstream>
 #include <vector>
 
+using namespace std;
+
 int main() {
     int n;
     std::cout << "Enter the size of the matrix: ";
@@ -22,7 +24,7 @@ int main() {
         std::cerr << "Unable to open file";
         return 1;
     }
-
+    outfile<<n<<endl;
     for(int i = 0; i < n; i++) {
         for(int j = 0; j < n; j++) {
             outfile << matrix[i][j] << " ";

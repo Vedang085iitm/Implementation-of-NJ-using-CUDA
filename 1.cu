@@ -11,6 +11,7 @@ using namespace std;
 using std::cin;
 using std::cout;
 
+
 __global__ void rowsum(int *d_matrix, int *d_sums, int n)
 {
     long block_Idx = blockIdx.x + (gridDim.x) * blockIdx.y + (gridDim.y * gridDim.x) * blockIdx.z;
@@ -189,12 +190,6 @@ auto elapsed1_casted = std::chrono::duration_cast<std::chrono::microseconds>(ela
     std::chrono::duration<double> elapsed3 = end - start;
  auto elapsed3_casted = std::chrono::duration_cast<std::chrono::microseconds>(elapsed3).count();
 
-
-//         int h_minVal;
-// cudaMemcpy(&h_minVal, d_minVal, sizeof(int), cudaMemcpyDeviceToHost);
-
-// // Print the minimum value
-// std::cout << "Minimum Value: " << h_minVal << std::endl;
 
     // print the deltas
     int delta;
