@@ -110,98 +110,88 @@ __global__ void copy_mat(int * to , int * from , int n){
     }
 }
 
-int main(int argc, char **argv){
+int main(int argc, char **argv) {
     int n;
     cin >> n;
     int *matrix = new int[n * n];
-    for (int i = 0; i < n; ++i){
-        for (int j = 0; j < n; ++j){
+    for (int i = 0; i < n; ++i) {
+        for (int j = 0; j < n; ++j) {
             cin >> matrix[i * n + j];
         }
     }
-
- 
-    
-
     int top = n;
-    vector<int> prev(n , 0);
-    vector<int> next(n , 0);
+    vector<int> prev(n, 0);
+    vector<int> next(n, 0);
     vector<vector<int>> tree(n);
-     vector<vector<int>> edgeWeights(1e4 , vector<int> (1e4 , 0));
-    int * new_mat = new int[n*n];
-    int * rowsums = new int[n];
-    int * njMatrix = new int[n * n];
-    int * d_old_mat;
-    int * d_new_mat;
-    int * d_rowsums;
-    int * d_njMatrix;
+    vector<vector<int>> edgeWeights(1e4, vector<int>(1e4, 0));
+    int *new_mat = new int[n * n];
+    int *rowsums = new int[n];
+    int *njMatrix = new int[n * n];
+    int *d_old_mat;
+    int *d_new_mat;
+    int *d_rowsums;
+    int *d_njMatrix;
 
-    int minVal , minIdx , minIdxI , minIdxJ , delta;
+    // CUDA streams creation
+    cudaStream_t stream1, stream2;
+    cudaStreamCreate(&stream1);
+    cudaStreamCreate(&stream2);
+
+    int minVal, minIdx, minIdxI, minIdxJ, delta;
     minVal = 1e9;
-    int * d_minVal , * d_minIdx;
-    
+    int *d_minVal, *d_minIdx;
+
     cudaMalloc(&d_njMatrix, n * n * sizeof(int));
     cudaMalloc(&d_old_mat, n * n * sizeof(int));
     cudaMalloc(&d_new_mat, n * n * sizeof(int));
     cudaMalloc(&d_rowsums, n * sizeof(int));
     cudaMalloc(&d_minVal, sizeof(int));
-    cudaMalloc(&d_minIdx , sizeof(int));
+    cudaMalloc(&d_minIdx, sizeof(int));
 
-    cudaMemcpy(d_minVal , &minVal , sizeof(int) , cudaMemcpyHostToDevice);
+    cudaMemcpyAsync(d_minVal, &minVal, sizeof(int), cudaMemcpyHostToDevice, stream1);
+    cudaMemcpyAsync(d_old_mat, matrix, n * n * sizeof(int), cudaMemcpyHostToDevice, stream1);
 
-    cudaMemcpy(d_old_mat, matrix, n * n * sizeof(int), cudaMemcpyHostToDevice);
-
-    for(int i = 0 ; i < n ; i ++) prev[i] = i;
+    for (int i = 0; i < n; i++) prev[i] = i;
 
     int num_blocks;
     auto start = chrono::high_resolution_clock::now();
+ 
 
-    while(n - 2){
+    while (n - 2) {
 
-        // get row sums
-        num_blocks = (n*n + 1023) / 1024;
-        cudaMemset(d_rowsums , 0 , n*sizeof(int));
-        getsum<<< num_blocks , 1024 >>> (d_rowsums , d_old_mat , n);
-        cudaDeviceSynchronize();
-        cudaMemcpy(rowsums , d_rowsums , n*sizeof(int) , cudaMemcpyDeviceToHost);
+        num_blocks = (n * n + 1023) / 1024;
+        cudaMemsetAsync(d_rowsums, 0, n * sizeof(int), stream1);
+        getsum<<<num_blocks, 1024, 0, stream1>>>(d_rowsums, d_old_mat, n);
 
-        // create nj matrix
-        create_nj <<< num_blocks , 1024 >>> (d_old_mat , d_rowsums , d_njMatrix , n);
-        cudaDeviceSynchronize();
-        cudaMemcpy(njMatrix , d_njMatrix , n*n*sizeof(int) , cudaMemcpyDeviceToHost);
+        create_nj<<<num_blocks, 1024, 0, stream1>>>(d_old_mat, d_rowsums, d_njMatrix, n);
 
         minVal = 1e9;
-        cudaMemcpy(d_minVal , &minVal , sizeof(int) , cudaMemcpyHostToDevice);
-        findMin <<< num_blocks , 1024 >>> (d_njMatrix , d_minVal , n);
-        cudaDeviceSynchronize();
-        cudaMemcpy(&minVal , d_minVal , sizeof(int) , cudaMemcpyDeviceToHost);
+        cudaMemcpyAsync(d_minVal, &minVal, sizeof(int), cudaMemcpyHostToDevice, stream1);
+        findMin<<<num_blocks, 1024, 0, stream1>>>(d_njMatrix, d_minVal, n);
 
-        //find MinIndices
-        getMinidx <<< num_blocks , 1024 >>> (d_njMatrix , d_minIdx , minVal , n);
-        cudaDeviceSynchronize();
-        cudaMemcpy(&minIdx , d_minIdx , sizeof(int) , cudaMemcpyDeviceToHost);
+        getMinidx<<<num_blocks, 1024, 0, stream1>>>(d_njMatrix, d_minIdx, minVal, n);
+
+        cudaMemcpyAsync(&minVal, d_minVal, sizeof(int), cudaMemcpyDeviceToHost, stream1);
+        cudaMemcpyAsync(&minIdx, d_minIdx, sizeof(int), cudaMemcpyDeviceToHost, stream1);
         minIdxI = minIdx / n;
         minIdxJ = minIdx % n;
-        delta = (rowsums[minIdxI] - rowsums[minIdxJ]) / (n-2);
+        delta = (rowsums[minIdxI] - rowsums[minIdxJ]) / (n - 2);
 
-        // make newMatrix
-        makeNew <<< num_blocks , 1024 >>> (d_old_mat , d_new_mat , minIdxI , minIdxJ , n);
-        cudaDeviceSynchronize();
+        makeNew<<<num_blocks, 1024, 0, stream1>>>(d_old_mat, d_new_mat, minIdxI, minIdxJ, n);
 
-        cudaMemcpy(new_mat , d_new_mat , (n-1)*(n-1)*sizeof(int) ,  cudaMemcpyDeviceToHost);
-        
+        cudaMemcpyAsync(new_mat, d_new_mat, (n - 1) * (n - 1) * sizeof(int), cudaMemcpyDeviceToHost, stream1);
         new_mat[0] = 0;
         ll ct = 0;
-        for(ll m = 1 ; m < n - 1 ; m++){
-            while(ct==minIdxI || ct==minIdxJ) ct++;
-            new_mat[m] = (matrix[minIdxI * n + ct] + matrix[minIdxJ * n + ct] - matrix[minIdxI *n + minIdxJ]) / 2;
-            new_mat[m*(n-1)] = new_mat[m];
-            ct++;  
+        for (ll m = 1; m < n - 1; m++) {
+            while (ct == minIdxI || ct == minIdxJ) ct++;
+            new_mat[m] = (matrix[minIdxI * n + ct] + matrix[minIdxJ * n + ct] - matrix[minIdxI * n + minIdxJ]) / 2;
+            new_mat[m * (n - 1)] = new_mat[m];
+            ct++;
         }
 
         tree.push_back(vector<int>());
-        
-        pair<int,int> pr = calculateLimbLengths(matrix , minIdxI , minIdxJ , delta , n);
+
+        pair<int, int> pr = calculateLimbLengths(matrix, minIdxI, minIdxJ, delta, n);
 
         edgeWeights[prev[minIdxI]][top] = pr.first;
         edgeWeights[prev[minIdxJ]][top] = pr.second;
@@ -214,46 +204,72 @@ int main(int argc, char **argv){
 
         next[0] = top;
         ll cnt = 1;
-        for(ll i = 0 ; i < n ; i++){
-            if(i!=minIdxI && i!=minIdxJ) next[cnt++] = prev[i];
+        for (ll i = 0; i < n; i++) {
+            if (i != minIdxI && i != minIdxJ) next[cnt++] = prev[i];
         }
         prev = next;
-        num_blocks = ((n-1)*(n-1) + 1023) / 1024;
-        cudaMemcpy(d_new_mat , new_mat , (n-1)*(n-1)*sizeof(int) , cudaMemcpyHostToDevice);
-        copy_mat<<< num_blocks , 1024 >>> (d_old_mat , d_new_mat , n -1);
-        cudaDeviceSynchronize();
-        cudaMemcpy(matrix , d_old_mat , (n-1)*(n-1)*sizeof(int) , cudaMemcpyDeviceToHost);
+        num_blocks = ((n - 1) * (n - 1) + 1023) / 1024;
+        cudaMemcpyAsync(d_new_mat, new_mat, (n - 1) * (n - 1) * sizeof(int), cudaMemcpyHostToDevice, stream1);
+        copy_mat<<<num_blocks, 1024, 0, stream1>>>(d_old_mat, d_new_mat, n - 1);
+        cudaMemcpyAsync(matrix, d_old_mat, (n - 1) * (n - 1) * sizeof(int), cudaMemcpyDeviceToHost, stream1);
         top++;
         n--;
     }
+
     tree[next[0]].push_back(next[1]);
     tree[next[1]].push_back(next[0]);
     edgeWeights[next[0]][next[1]] = new_mat[1];
     edgeWeights[next[1]][next[0]] = new_mat[1];
 
+    //print tree
+    for (int i = 0; i < top; i++) {
+        cout << i << " - ";
+        for (auto v : tree[i]) {
+            cout << v << " ";
+        }
+        cout << endl;
+    }
+  
+
     auto stop = chrono::high_resolution_clock::now();
-    
+
     auto duration = chrono::duration_cast<chrono::microseconds>(stop - start);
+    //
 
     ofstream file("out1.txt");
-    // if(file.is_open()){
-    //     cout << "-1" << endl;
-    // }
+    if (!file.is_open()) {
+        cout << "Error: Unable to open file for writing." << endl;
+        return 1;
+    }
 
-    // for(int i = 0 ; i < top ; i++){
-    //     file << i << " - ";
-    //     for(auto v : tree[i]){
-    //         file << v << " ";
-    //     }
-    //     file << endl;
-    // }
+    file << "Resulting tree:" << endl;
+    for (int i = 0; i < top; i++) {
+        file << i << " - ";
+        for (auto v : tree[i]) {
+            file << v << " ";
+        }
+        file << endl;
+    }
 
-    // for(int i = 0 ; i < top ; i++){
-    //     for(int j = 0 ; j < top ; j++){
-    //         cout << edgeWeights[i][j] << " ";
-    //     }
-    //     cout << endl;
-    // }
+    //print edge weights
+    file << "Edge weights:" << endl;
+    for (int i = 0; i < top; i++) {
+        for (int j = 0; j < top; j++) {
+            if (edgeWeights[i][j] != 0) {
+                file << i << " " << j << " " << edgeWeights[i][j] << endl;
+            }
+        }
+    }
 
     cout << "Time taken by function: " << duration.count() << " microseconds" << endl;
+
+    cudaStreamDestroy(stream1);
+    cudaStreamDestroy(stream2);
+    cudaFree(d_old_mat);
+    cudaFree(d_new_mat);
+    cudaFree(d_rowsums);
+    cudaFree(d_njMatrix);
+    cudaFree(d_minVal);
+    cudaFree(d_minIdx);
+    return 0;
 }
